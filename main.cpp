@@ -6,19 +6,19 @@
 #include <string>
 #include <filesystem>
 
-static unsigned int ss_id = 0;
+static uint32_t ss_id = 0;
 
-void dumpFramebufferToPPM(std::string prefix, unsigned int width, unsigned int height);
+void dumpFramebufferToPPM(std::string prefix, uint32_t width, uint32_t height);
 
 void processInput(GLFWwindow *window);
 
 void framebufferSizeCallback(GLFWwindow *window, int width, int height);
 
-unsigned int createVertexShader(int *success);
+uint32_t createVertexShader(int *success);
 
-unsigned int createFragmentShader(int *success);
+uint32_t createFragmentShader(int *success);
 
-unsigned int createShaderProgram(unsigned int vertexShader, unsigned int fragmentShader, int *success);
+uint32_t createShaderProgram(uint32_t vertexShader, uint32_t fragmentShader, int *success);
 
 int main() {
     glfwInit();
@@ -30,8 +30,8 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-    int windowWidth = 512;
-    int windowHeight = 512;
+    const int windowWidth = 1024;
+    const int windowHeight = 768;
     GLFWwindow *window = glfwCreateWindow(windowWidth, windowHeight, "Assignment0", NULL, NULL);
 
     if (window == NULL) {
@@ -50,42 +50,90 @@ int main() {
     //shaders
     int success;
     char errorMsg[512];
-    unsigned int vs = createVertexShader(&success);
+    uint32_t vs = createVertexShader(&success);
     if (!success) {
         glGetShaderInfoLog(vs, 512, NULL, errorMsg);
         std::cout << "Vertex Shader Failed: " << errorMsg << std::endl;
+        return -1;
     }
 
-    unsigned int fs = createFragmentShader(&success);
+    uint32_t fs = createFragmentShader(&success);
     if (!success) {
         glGetShaderInfoLog(fs, 512, NULL, errorMsg);
         std::cout << "Fragment Shader Failed: " << errorMsg << std::endl;
+        return -1;
     }
 
-    unsigned int shaderProgram = createShaderProgram(vs, fs, &success);
+    uint32_t shaderProgram = createShaderProgram(vs, fs, &success);
     if (!success) {
         glGetProgramInfoLog(shaderProgram, 512, NULL, errorMsg);
         std::cout << "Program Link Error: " << errorMsg << std::endl;
+        return -1;
     }
 
     glDeleteShader(vs);
     glDeleteShader(fs);
 
-    //triangle vertex positions
-    float tri_verts[] = {
-            -0.8f, -0.8f, 0.0f, //bottom left
-            0.8f, -0.8f, 0.0f, //bottom right
-            0.0f, 0.8f, 0.0f  //top middle
+    float vertices[] = {
+            // Front face
+            -1.0f, -1.0f, 1.0f, // Bottom-left
+            1.0f, -1.0f, 1.0f, // Bottom-right
+            1.0f, 1.0f, 1.0f, // Top-right
+            -1.0f, 1.0f, 1.0f, // Top-left
+
+            // Back face
+            -1.0f, -1.0f, -1.0f, // Bottom-left
+            1.0f, -1.0f, -1.0f, // Bottom-right
+            1.0f, 1.0f, -1.0f, // Top-right
+            -1.0f, 1.0f, -1.0f  // Top-left
     };
 
-    unsigned int VBO, VAO;
+    uint32_t indices[] = {
+            // Front face
+            0, 1, 2,
+            2, 3, 0,
+
+            // Back face
+            4, 5, 6,
+            6, 7, 4,
+
+            // Left face
+            3, 7, 6,
+            6, 0, 3,
+
+            // Right face
+            1, 5, 4,
+            4, 2, 1,
+
+            // Top face
+            3, 2, 4,
+            4, 7, 3,
+
+            // Bottom face
+            0, 6, 5,
+            5, 1, 0
+    };
+
+    uint32_t VBO, VAO, EBO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
+    glGenBuffers(1, &EBO);
+
+    // bind Vertex Array Object
     glBindVertexArray(VAO);
+
+    // bind vertices array to a vertex buffer
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(tri_verts), tri_verts, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    // bin indices array to a element buffer
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+    // set vertex attributes pointers
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *) 0);
     glEnableVertexAttribArray(0);
+
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
@@ -99,7 +147,7 @@ int main() {
         //draw things
         glUseProgram(shaderProgram);
         glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -108,12 +156,13 @@ int main() {
     //release resource
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
+    glDeleteBuffers(1, &EBO);
     glDeleteProgram(shaderProgram);
     glfwTerminate();
     return 0;
 }
 
-unsigned int createVertexShader(int *success) {
+uint32_t createVertexShader(int *success) {
     const char *vertexShaderSource = "#version 330 core\n"
                                      "layout (location = 0) in vec3 aPos;\n"
                                      "void main()\n"
@@ -121,14 +170,14 @@ unsigned int createVertexShader(int *success) {
                                      "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
                                      "}\0";
 
-    unsigned int vs = glCreateShader(GL_VERTEX_SHADER);
+    uint32_t vs = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vs, 1, &vertexShaderSource, NULL);
     glCompileShader(vs);
     glGetShaderiv(vs, GL_COMPILE_STATUS, success);
     return vs;
 }
 
-unsigned int createFragmentShader(int *success) {
+uint32_t createFragmentShader(int *success) {
     const char *fragmentShaderSource = "#version 330 core\n"
                                        "out vec4 FragColor;\n"
                                        "void main()\n"
@@ -136,15 +185,15 @@ unsigned int createFragmentShader(int *success) {
                                        "   FragColor = vec4(0.9f, 0.8f, 0.7f, 1.0f);\n" //triangle color green
                                        "}\n\0";
 
-    unsigned int fs = glCreateShader(GL_FRAGMENT_SHADER);
+    uint32_t fs = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fs, 1, &fragmentShaderSource, NULL);
     glCompileShader(fs);
     glGetShaderiv(fs, GL_COMPILE_STATUS, success);
     return fs;
 }
 
-unsigned int createShaderProgram(unsigned int vertexShader, unsigned int fragmentShader, int *success) {
-    unsigned int shaderProgram = glCreateProgram();
+uint32_t createShaderProgram(uint32_t vertexShader, uint32_t fragmentShader, int *success) {
+    uint32_t shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vertexShader);
     glAttachShader(shaderProgram, fragmentShader);
     glLinkProgram(shaderProgram);
@@ -171,7 +220,7 @@ void processInput(GLFWwindow *window) {
     }
 }
 
-void dumpFramebufferToPPM(std::string prefix, unsigned int width, unsigned int height) {
+void dumpFramebufferToPPM(std::string prefix, uint32_t width, uint32_t height) {
     int pixelChannel = 3;
     int totalPixelSize = pixelChannel * width * height * sizeof(GLubyte);
     GLubyte *pixels = new GLubyte[totalPixelSize];
