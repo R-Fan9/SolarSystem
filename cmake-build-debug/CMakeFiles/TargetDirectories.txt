@@ -1,0 +1,3 @@
+C:/Users/User/OneDrive/Documents/CS3GC3/Assigments/A1/SolarSystem/cmake-build-debug/CMakeFiles/SolarSystem.dir
+C:/Users/User/OneDrive/Documents/CS3GC3/Assigments/A1/SolarSystem/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/Users/User/OneDrive/Documents/CS3GC3/Assigments/A1/SolarSystem/cmake-build-debug/CMakeFiles/rebuild_cache.dir
