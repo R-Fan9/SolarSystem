@@ -5,6 +5,7 @@
 #include <fstream>
 #include <string>
 #include <filesystem>
+#include <shader.h>
 
 static uint32_t ss_id = 0;
 
@@ -13,12 +14,6 @@ void dumpFramebufferToPPM(std::string prefix, uint32_t width, uint32_t height);
 void processInput(GLFWwindow *window);
 
 void framebufferSizeCallback(GLFWwindow *window, int width, int height);
-
-uint32_t createVertexShader(int *success);
-
-uint32_t createFragmentShader(int *success);
-
-uint32_t createShaderProgram(uint32_t vertexShader, uint32_t fragmentShader, int *success);
 
 int main() {
     glfwInit();
@@ -47,77 +42,61 @@ int main() {
         return -1;
     }
 
-    //shaders
-    int success;
-    char errorMsg[512];
-    uint32_t vs = createVertexShader(&success);
-    if (!success) {
-        glGetShaderInfoLog(vs, 512, NULL, errorMsg);
-        std::cout << "Vertex Shader Failed: " << errorMsg << std::endl;
-        return -1;
-    }
-
-    uint32_t fs = createFragmentShader(&success);
-    if (!success) {
-        glGetShaderInfoLog(fs, 512, NULL, errorMsg);
-        std::cout << "Fragment Shader Failed: " << errorMsg << std::endl;
-        return -1;
-    }
-
-    uint32_t shaderProgram = createShaderProgram(vs, fs, &success);
-    if (!success) {
-        glGetProgramInfoLog(shaderProgram, 512, NULL, errorMsg);
-        std::cout << "Program Link Error: " << errorMsg << std::endl;
-        return -1;
-    }
-
-    glDeleteShader(vs);
-    glDeleteShader(fs);
+    Shader shader("shaders/shader.vs", "shaders/shader.fs");
 
     float vertices[] = {
-            // Front face
-            -1.0f, -1.0f, 1.0f, // Bottom-left
-            1.0f, -1.0f, 1.0f, // Bottom-right
-            1.0f, 1.0f, 1.0f, // Top-right
-            -1.0f, 1.0f, 1.0f, // Top-left
+            // back face, yellow
+            -0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 0.0f,
+            0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 0.0f,
+            0.5f, 0.5f, -0.5f, 1.0f, 1.0f, 0.0f,
+            0.5f, 0.5f, -0.5f, 1.0f, 1.0f, 0.0f,
+            -0.5f, 0.5f, -0.5f, 1.0f, 1.0f, 0.0f,
+            -0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 0.0f,
 
-            // Back face
-            -1.0f, -1.0f, -1.0f, // Bottom-left
-            1.0f, -1.0f, -1.0f, // Bottom-right
-            1.0f, 1.0f, -1.0f, // Top-right
-            -1.0f, 1.0f, -1.0f  // Top-left
+            // front face, purple
+            -0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 1.0f,
+            0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 1.0f,
+            0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 1.0f,
+            0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 1.0f,
+            -0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 1.0f,
+            -0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 1.0f,
+
+            // right face, green
+            -0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
+            -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+            -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+            -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
+            -0.5f, -0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
+            -0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
+
+            // left face, red
+            0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
+            0.5f, 0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+            0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+            0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+            0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
+            0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
+
+            // bottom face, light blue
+            -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 1.0f,
+            0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 1.0f,
+            0.5f, -0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
+            0.5f, -0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
+            -0.5f, -0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
+            -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 1.0f,
+
+            // top face, blue
+            -0.5f, 0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+            0.5f, 0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+            0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+            0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+            -0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
+            -0.5f, 0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
     };
 
-    uint32_t indices[] = {
-            // Front face
-            0, 1, 2,
-            2, 3, 0,
-
-            // Back face
-            4, 5, 6,
-            6, 7, 4,
-
-            // Left face
-            3, 7, 6,
-            6, 0, 3,
-
-            // Right face
-            1, 5, 4,
-            4, 2, 1,
-
-            // Top face
-            3, 2, 4,
-            4, 7, 3,
-
-            // Bottom face
-            0, 6, 5,
-            5, 1, 0
-    };
-
-    uint32_t VBO, VAO, EBO;
+    uint32_t VBO, VAO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
 
     // bind Vertex Array Object
     glBindVertexArray(VAO);
@@ -126,16 +105,13 @@ int main() {
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    // bin indices array to a element buffer
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-    // set vertex attributes pointers
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *) 0);
+    // position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
+    // color attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
 
     while (!glfwWindowShouldClose(window)) {
         processInput(window);
@@ -145,9 +121,9 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT);
 
         //draw things
-        glUseProgram(shaderProgram);
+        shader.use();
         glBindVertexArray(VAO);
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -156,52 +132,10 @@ int main() {
     //release resource
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &EBO);
-    glDeleteProgram(shaderProgram);
+
     glfwTerminate();
     return 0;
 }
-
-uint32_t createVertexShader(int *success) {
-    const char *vertexShaderSource = "#version 330 core\n"
-                                     "layout (location = 0) in vec3 aPos;\n"
-                                     "void main()\n"
-                                     "{\n"
-                                     "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-                                     "}\0";
-
-    uint32_t vs = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vs, 1, &vertexShaderSource, NULL);
-    glCompileShader(vs);
-    glGetShaderiv(vs, GL_COMPILE_STATUS, success);
-    return vs;
-}
-
-uint32_t createFragmentShader(int *success) {
-    const char *fragmentShaderSource = "#version 330 core\n"
-                                       "out vec4 FragColor;\n"
-                                       "void main()\n"
-                                       "{\n"
-                                       "   FragColor = vec4(0.9f, 0.8f, 0.7f, 1.0f);\n" //triangle color green
-                                       "}\n\0";
-
-    uint32_t fs = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fs, 1, &fragmentShaderSource, NULL);
-    glCompileShader(fs);
-    glGetShaderiv(fs, GL_COMPILE_STATUS, success);
-    return fs;
-}
-
-uint32_t createShaderProgram(uint32_t vertexShader, uint32_t fragmentShader, int *success) {
-    uint32_t shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, success);
-
-    return shaderProgram;
-}
-
 void framebufferSizeCallback(GLFWwindow *window, int width, int height) {
     glViewport(0, 0, width, height);
 }
