@@ -137,7 +137,7 @@ int main() {
         glm::mat4 view = glm::mat4(1.0f);
         glm::mat4 proj = glm::mat4(1.0f);
 
-        view = glm::lookAt(glm::vec3(0.0f, 120.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        view = glm::lookAt(glm::vec3(70.0f, 60.0f, 50.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         proj = glm::perspective(glm::radians(30.0f), (float) 4 / (float) 3, 0.1f, 1000.0f);
 
         shader.setMat4("view", view);
@@ -146,18 +146,18 @@ int main() {
         //render container
         glBindVertexArray(VAO);
 
-        sun = glm::scale(model, glm::vec3(12.0f, 12.0f, 12.0f));
+        sun = glm::scale(model, glm::vec3(6.0f, 6.0f, 6.0f));
         shader.setMat4("model", sun);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
         earth = glm::translate(model, glm::vec3(24.0f, 0.0f, 0.0f));
-        earth = glm::scale(earth, glm::vec3(6.0f, 6.0f, 6.0f));
+        earth = glm::scale(earth, glm::vec3(3.0f, 3.0f, 3.0f));
         earth = glm::rotate(earth, (float)glm::radians(-23.4), glm::vec3(0.0f, 0.0f, 1.0f));
         shader.setMat4("model", earth);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
         moon = glm::translate(model, glm::vec3(36.0f, 0.0f, 0.0f));
-        moon = glm::scale(moon, glm::vec3(3.0f, 3.0f, 3.0f));
+        moon = glm::scale(moon, glm::vec3(1.5f, 1.5f, 1.5f));
         shader.setMat4("model", moon);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
