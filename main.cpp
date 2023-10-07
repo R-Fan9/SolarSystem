@@ -1,5 +1,8 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <iostream>
 #include <fstream>
@@ -8,6 +11,8 @@
 #include <shader.h>
 
 static uint32_t ss_id = 0;
+const int SCR_WIDTH = 1024;
+const int SCR_HEIGHT = 768;
 
 void dumpFramebufferToPPM(std::string prefix, uint32_t width, uint32_t height);
 
@@ -25,9 +30,7 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-    const int windowWidth = 1024;
-    const int windowHeight = 768;
-    GLFWwindow *window = glfwCreateWindow(windowWidth, windowHeight, "Assignment0", NULL, NULL);
+    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Solar System", NULL, NULL);
 
     if (window == NULL) {
         std::cout << "GLFW Window Failed" << std::endl;
@@ -42,56 +45,61 @@ int main() {
         return -1;
     }
 
+    // configure global openGL state
+    glEnable(GL_DEPTH_TEST);
+
+    // build and compile shader program
     Shader shader("shaders/shader.vs", "shaders/shader.fs");
 
+    // cube vertices
     float vertices[] = {
             // back face, yellow
-            -0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 0.0f,
-            0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 0.0f,
-            0.5f, 0.5f, -0.5f, 1.0f, 1.0f, 0.0f,
-            0.5f, 0.5f, -0.5f, 1.0f, 1.0f, 0.0f,
-            -0.5f, 0.5f, -0.5f, 1.0f, 1.0f, 0.0f,
-            -0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 0.0f,
+            -1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 0.0f,
+            1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 0.0f,
+            1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 0.0f,
+            1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 0.0f,
+            -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 0.0f,
+            -1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 0.0f,
 
             // front face, purple
-            -0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 1.0f,
-            0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 1.0f,
-            0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 1.0f,
-            0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 1.0f,
-            -0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 1.0f,
-            -0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 1.0f,
+            -1.0f, -1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+            1.0f, -1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+            1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+            1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+            -1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+            -1.0f, -1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
 
             // right face, green
-            -0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
-            -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
-            -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
-            -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.0f,
-            -0.5f, -0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
-            -0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f,
+            -1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+            -1.0f, 1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+            -1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+            -1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+            -1.0f, -1.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+            -1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f,
 
             // left face, red
-            0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
-            0.5f, 0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
-            0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
-            0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
-            0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
-            0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f,
+            1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
+            1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 0.0f,
+            1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f,
+            1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f,
+            1.0f, -1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
+            1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
 
             // bottom face, light blue
-            -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 1.0f,
-            0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 1.0f,
-            0.5f, -0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
-            0.5f, -0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
-            -0.5f, -0.5f, 0.5f, 0.0f, 1.0f, 1.0f,
-            -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 1.0f,
+            -1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 1.0f,
+            1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 1.0f,
+            1.0f, -1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+            1.0f, -1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+            -1.0f, -1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+            -1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 1.0f,
 
             // top face, blue
-            -0.5f, 0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
-            0.5f, 0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
-            0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
-            0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
-            -0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f,
-            -0.5f, 0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+            -1.0f, 1.0f, -1.0f, 0.0f, 0.0f, 1.0f,
+            1.0f, 1.0f, -1.0f, 0.0f, 0.0f, 1.0f,
+            1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            -1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            -1.0f, 1.0f, -1.0f, 0.0f, 0.0f, 1.0f,
     };
 
     uint32_t VBO, VAO;
@@ -106,22 +114,35 @@ int main() {
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
     // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *) 0);
     glEnableVertexAttribArray(0);
 
     // color attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *) (3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
     while (!glfwWindowShouldClose(window)) {
         processInput(window);
 
-        //background color
+        // background color
         glClearColor(0.3f, 0.4f, 0.5f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        //draw things
+        // activate shader
         shader.use();
+
+        glm::mat4 model = glm::mat4(1.0f);
+        glm::mat4 view = glm::mat4(1.0f);
+        glm::mat4 proj = glm::mat4(1.0f);
+
+        view  = glm::lookAt(glm::vec3 (7.0f, -8.0f, -9.0f), glm::vec3 (0.0f, 0.0f, 0.0f), glm::vec3 (0.0f, 1.0f, 0.0f));
+        proj = glm::perspective(glm::radians(30.0f), (float)4 / (float)3, 0.1f, 1000.0f);
+
+        shader.setMat4("model", model);
+        shader.setMat4("view", view);
+        shader.setMat4("projection", proj);
+
+        //render container
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
@@ -136,6 +157,7 @@ int main() {
     glfwTerminate();
     return 0;
 }
+
 void framebufferSizeCallback(GLFWwindow *window, int width, int height) {
     glViewport(0, 0, width, height);
 }
