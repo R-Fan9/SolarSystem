@@ -1,7 +1,0 @@
-# ninja log v5
-9	717	7182333001570199	build.ninja	d741d637c3a42310
-18	5505	7182332061928463	CMakeFiles/SolarSystem.dir/main.cpp.obj	a779c1a83ebca4dd
-2	9153	7182332126999802	CMakeFiles/SolarSystem.dir/glad.c.obj	fcf037a98b10405f
-9159	9592	7182332131303830	SolarSystem.exe	3cb28525fd5e32a9
-10	974	7182333280245480	CMakeFiles/SolarSystem.dir/main.cpp.obj	a779c1a83ebca4dd
-975	1258	7182333283011632	SolarSystem.exe	3cb28525fd5e32a9

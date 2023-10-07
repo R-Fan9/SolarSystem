@@ -1,73 +1,26 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <filesystem>
+#include <shader.h>
 
-static unsigned int ss_id = 0;
-void dump_framebuffer_to_ppm(std::string prefix, unsigned int width, unsigned int height) {
-    int pixelChannel = 3;
-    int totalPixelSize = pixelChannel * width * height * sizeof(GLubyte);
-    GLubyte * pixels = new GLubyte [totalPixelSize];
-    glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
-    std::string file_name = R"(C:\Users\User\OneDrive\Documents\CS3GC3\Projects\HelloOpenGL\)" + prefix + std::to_string(ss_id) + ".ppm";
-    std::ofstream fout(file_name);
-    fout << "P3\n" << width << " " << height << "\n" << 255 << std::endl;
-    for (size_t i = 0; i < height; i++)
-    {
-        for (size_t j = 0; j < width; j++)
-        {
-            size_t cur = pixelChannel * ((height - i - 1) * width + j);
-            fout << (int)pixels[cur] << " " << (int)pixels[cur + 1] << " " << (int)pixels[cur + 2] << " ";
-        }
-        fout << std::endl;
-    }
-    ss_id ++;
-    delete [] pixels;
-    fout.flush();
-    fout.close();
-}
+static uint32_t ss_id = 0;
+const int SCR_WIDTH = 1024;
+const int SCR_HEIGHT = 768;
 
-//key board control
-void processInput(GLFWwindow *window)
-{
-    //press escape to exit
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
+void dumpFramebufferToPPM(std::string prefix, uint32_t width, uint32_t height);
 
-    //press p to capture screen
-    if(glfwGetKey(window, GLFW_KEY_P) ==GLFW_PRESS)
-    {
-        std::cout << "Capture Window " << ss_id << std::endl;
-        int buffer_width, buffer_height;
-        glfwGetFramebufferSize(window, &buffer_width, &buffer_height);
-        dump_framebuffer_to_ppm("Assignment0-ss", buffer_width, buffer_height);
-    }
-}
+void processInput(GLFWwindow *window);
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height)
-{
-    glViewport(0, 0, width, height);
-}
+void framebufferSizeCallback(GLFWwindow *window, int width, int height);
 
-//shader
-const char *vertexShaderSource = "#version 330 core\n"
-                                 "layout (location = 0) in vec3 aPos;\n"
-                                 "void main()\n"
-                                 "{\n"
-                                 "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-                                 "}\0";
-const char *fragmentShaderSource = "#version 330 core\n"
-                                   "out vec4 FragColor;\n"
-                                   "void main()\n"
-                                   "{\n"
-                                   "   FragColor = vec4(0.9f, 0.8f, 0.7f, 1.0f);\n" //triangle color green
-                                   "}\n\0";
-
-
-int main()
-{
+int main() {
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -77,93 +30,121 @@ int main()
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-    int windowWidth = 512;
-    int windowHeight = 512;
-    GLFWwindow* window = glfwCreateWindow(windowWidth, windowHeight, "Assignment0", NULL, NULL);
+    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Solar System", NULL, NULL);
 
-    if (window == NULL)
-    {
+    if (window == NULL) {
         std::cout << "GLFW Window Failed" << std::endl;
         glfwTerminate();
         return -1;
     }
     glfwMakeContextCurrent(window);
-    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
 
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-    {
+    if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
         std::cout << "GLAD Initialization Failed" << std::endl;
         return -1;
     }
 
-    //shaders
-    int success;
-    char error_msg[512];
-    unsigned int vs = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vs, 1, &vertexShaderSource, NULL);
-    glCompileShader(vs);
-    glGetShaderiv(vs, GL_COMPILE_STATUS, &success);
+    // configure global openGL state
+    glEnable(GL_DEPTH_TEST);
 
-    if (!success)
-    {
-        glGetShaderInfoLog(vs, 512, NULL, error_msg);
-        std::cout << "Vertex Shader Failed: " << error_msg << std::endl;
-    }
+    // build and compile shader program
+    Shader shader("shaders/shader.vs", "shaders/shader.fs");
 
-    unsigned int fs = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fs, 1, &fragmentShaderSource, NULL);
-    glCompileShader(fs);
-    glGetShaderiv(fs, GL_COMPILE_STATUS, &success);
+    // cube vertices
+    float vertices[] = {
+            // back face, yellow
+            -1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 0.0f,
+            1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 0.0f,
+            1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 0.0f,
+            1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 0.0f,
+            -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 0.0f,
+            -1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 0.0f,
 
-    if (!success)
-    {
-        glGetShaderInfoLog(fs, 512, NULL, error_msg);
-        std::cout << "Fragment Shader Failed: " << error_msg << std::endl;
-    }
+            // front face, purple
+            -1.0f, -1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+            1.0f, -1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+            1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+            1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+            -1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+            -1.0f, -1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
 
-    unsigned int shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vs);
-    glAttachShader(shaderProgram, fs);
-    glLinkProgram(shaderProgram);
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(shaderProgram, 512, NULL, error_msg);
-        std::cout << "Program Link Error: " << error_msg << std::endl;
-    }
-    glDeleteShader(vs);
-    glDeleteShader(fs);
+            // right face, green
+            -1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+            -1.0f, 1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+            -1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+            -1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+            -1.0f, -1.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+            -1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f,
 
+            // left face, red
+            1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
+            1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 0.0f,
+            1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f,
+            1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f,
+            1.0f, -1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
+            1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
 
-    //triangle vertex positions
-    float tri_verts[] = {
-            -0.8f, -0.8f, 0.0f, //bottom left
-            0.8f, -0.8f, 0.0f, //bottom right
-            0.0f,  0.8f, 0.0f  //top middle
+            // bottom face, light blue
+            -1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 1.0f,
+            1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 1.0f,
+            1.0f, -1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+            1.0f, -1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+            -1.0f, -1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+            -1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 1.0f,
+
+            // top face, blue
+            -1.0f, 1.0f, -1.0f, 0.0f, 0.0f, 1.0f,
+            1.0f, 1.0f, -1.0f, 0.0f, 0.0f, 1.0f,
+            1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            -1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+            -1.0f, 1.0f, -1.0f, 0.0f, 0.0f, 1.0f,
     };
 
-    unsigned int VBO, VAO;
+    uint32_t VBO, VAO;
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(tri_verts), tri_verts, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
 
-    while (!glfwWindowShouldClose(window))
-    {
+    // bind Vertex Array Object
+    glBindVertexArray(VAO);
+
+    // bind vertices array to a vertex buffer
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    // position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *) 0);
+    glEnableVertexAttribArray(0);
+
+    // color attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *) (3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    while (!glfwWindowShouldClose(window)) {
         processInput(window);
 
-        //background color
+        // background color
         glClearColor(0.3f, 0.4f, 0.5f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        //draw things
-        glUseProgram(shaderProgram);
+        // activate shader
+        shader.use();
+
+        glm::mat4 model = glm::mat4(1.0f);
+        glm::mat4 view = glm::mat4(1.0f);
+        glm::mat4 proj = glm::mat4(1.0f);
+
+        view  = glm::lookAt(glm::vec3 (7.0f, -8.0f, -9.0f), glm::vec3 (0.0f, 0.0f, 0.0f), glm::vec3 (0.0f, 1.0f, 0.0f));
+        proj = glm::perspective(glm::radians(30.0f), (float)4 / (float)3, 0.1f, 1000.0f);
+
+        shader.setMat4("model", model);
+        shader.setMat4("view", view);
+        shader.setMat4("projection", proj);
+
+        //render container
         glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -172,7 +153,51 @@ int main()
     //release resource
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
-    glDeleteProgram(shaderProgram);
+
     glfwTerminate();
     return 0;
+}
+
+void framebufferSizeCallback(GLFWwindow *window, int width, int height) {
+    glViewport(0, 0, width, height);
+}
+
+void processInput(GLFWwindow *window) {
+    //press escape to exit
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+
+    //press p to capture screen
+    if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS) {
+        std::cout << "Capture Window " << ss_id << std::endl;
+        int buffer_width, buffer_height;
+        glfwGetFramebufferSize(window, &buffer_width, &buffer_height);
+        dumpFramebufferToPPM("Assignment0-ss", buffer_width, buffer_height);
+    }
+}
+
+void dumpFramebufferToPPM(std::string prefix, uint32_t width, uint32_t height) {
+    int pixelChannel = 3;
+    int totalPixelSize = pixelChannel * width * height * sizeof(GLubyte);
+    GLubyte *pixels = new GLubyte[totalPixelSize];
+    glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+
+    std::string fileName = prefix + std::to_string(ss_id) + ".ppm";
+    std::filesystem::path filePath = std::filesystem::current_path() / fileName;
+    std::ofstream fout(filePath.string());
+
+    fout << "P3\n" << width << " " << height << "\n" << 255 << std::endl;
+    for (size_t i = 0; i < height; i++) {
+        for (size_t j = 0; j < width; j++) {
+            size_t cur = pixelChannel * ((height - i - 1) * width + j);
+            fout << (int) pixels[cur] << " " << (int) pixels[cur + 1] << " " << (int) pixels[cur + 2] << " ";
+        }
+        fout << std::endl;
+    }
+
+    ss_id++;
+
+    delete[] pixels;
+    fout.flush();
+    fout.close();
 }
