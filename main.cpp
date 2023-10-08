@@ -13,12 +13,31 @@
 static uint32_t ss_id = 0;
 const int SCR_WIDTH = 1024;
 const int SCR_HEIGHT = 768;
+const float HOURS_PER_DAY = 24;
+const float SUN_EARTH_DISTANCE = 24.0f;
+const float EARTH_MOON_DISTANCE = 12.0f;
+const float REVOLVE_DEGREES = 360.0f;
+const float SUN_REVOLVE_DAYS = 27.0f;
+const float EARTH_REVOLVE_DAYS = 1.0f;
+const float EARTH_ORBIT_DAYS = 365.0f;
+const float MOON_REVOLVE_DAYS = 28.0f;
+const float MOON_ORBIT_DAYS = 28.0f;
 
 void dumpFramebufferToPPM(std::string prefix, uint32_t width, uint32_t height);
 
 void processInput(GLFWwindow *window);
 
 void framebufferSizeCallback(GLFWwindow *window, int width, int height);
+
+float get_sun_rotate_angle_around_itself(float day);
+
+float get_earth_rotate_angle_around_sun(float day);
+
+float get_earth_rotate_angle_around_itself(float day);
+
+float get_moon_rotate_angle_around_earth(float day);
+
+float get_moon_rotate_angle_around_itself(float day);
 
 int main() {
     glfwInit();
@@ -121,6 +140,13 @@ int main() {
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *) (3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
+    float day = 0.0f, inc = 1.0f / HOURS_PER_DAY;
+
+    glm::mat4 sun, earth, moon;
+    glm::mat4 model = glm::mat4(1.0f);
+    glm::mat4 view = glm::mat4(1.0f);
+    glm::mat4 proj = glm::mat4(1.0f);
+
     while (!glfwWindowShouldClose(window)) {
         processInput(window);
 
@@ -130,36 +156,49 @@ int main() {
 
         // activate shader
         shader.use();
-
-        glm::mat4 sun, earth, moon;
-
-        glm::mat4 model = glm::mat4(1.0f);
-        glm::mat4 view = glm::mat4(1.0f);
-        glm::mat4 proj = glm::mat4(1.0f);
-
-        view = glm::lookAt(glm::vec3(70.0f, 60.0f, 50.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        view = glm::lookAt(glm::vec3(100.0f, 50.0f, 100.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         proj = glm::perspective(glm::radians(30.0f), (float) 4 / (float) 3, 0.1f, 1000.0f);
 
         shader.setMat4("view", view);
         shader.setMat4("projection", proj);
 
-        //render container
+        // render container
         glBindVertexArray(VAO);
 
+        // draw sun
         sun = glm::scale(model, glm::vec3(6.0f, 6.0f, 6.0f));
+        sun = glm::rotate(sun,
+                          (float) glm::radians(get_sun_rotate_angle_around_itself(day)),
+                          glm::vec3(0.0f, 1.0f, 0.0f));
         shader.setMat4("model", sun);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
-        earth = glm::translate(model, glm::vec3(24.0f, 0.0f, 0.0f));
+        // draw earth
+        float earth_orbit_degree = get_earth_rotate_angle_around_sun(day);
+        float earth_x = SUN_EARTH_DISTANCE * (float) cos(glm::radians(earth_orbit_degree));
+        float earth_z = -SUN_EARTH_DISTANCE * (float) sin(glm::radians(earth_orbit_degree));
+        earth = glm::translate(model, glm::vec3(earth_x, 0.0f, earth_z));
         earth = glm::scale(earth, glm::vec3(3.0f, 3.0f, 3.0f));
-        earth = glm::rotate(earth, (float)glm::radians(-23.4), glm::vec3(0.0f, 0.0f, 1.0f));
+        earth = glm::rotate(earth, (float) glm::radians(-23.4), glm::vec3(0.0f, 0.0f, 1.0f));
+        earth = glm::rotate(earth,
+                            (float) glm::radians(get_earth_rotate_angle_around_itself(day)),
+                            glm::vec3(0.0f, 1.0f, 0.0f));
         shader.setMat4("model", earth);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
-        moon = glm::translate(model, glm::vec3(36.0f, 0.0f, 0.0f));
+        // draw moon
+        float moon_orbit_degree = get_moon_rotate_angle_around_earth(day);
+        float moon_x = EARTH_MOON_DISTANCE * (float) cos(glm::radians(moon_orbit_degree));
+        float moon_z = -EARTH_MOON_DISTANCE * (float) sin(glm::radians(moon_orbit_degree));
+        moon = glm::translate(model, glm::vec3(earth_x + moon_x, 0.0f, earth_z + moon_z));
         moon = glm::scale(moon, glm::vec3(1.5f, 1.5f, 1.5f));
+        moon = glm::rotate(moon,
+                           (float) glm::radians(get_moon_rotate_angle_around_itself(day)),
+                           glm::vec3(0.0f, 1.0f, 0.0f));
         shader.setMat4("model", moon);
         glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        day += inc;
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -171,6 +210,31 @@ int main() {
 
     glfwTerminate();
     return 0;
+}
+
+float get_sun_rotate_angle_around_itself(float day) {
+    float revolveDegPerDay = REVOLVE_DEGREES / SUN_REVOLVE_DAYS;
+    return day * revolveDegPerDay;
+}
+
+float get_earth_rotate_angle_around_sun(float day) {
+    float revolveDegPerDay = REVOLVE_DEGREES / EARTH_ORBIT_DAYS;
+    return day * revolveDegPerDay;
+}
+
+float get_earth_rotate_angle_around_itself(float day) {
+    float revolveDegPerDay = REVOLVE_DEGREES / EARTH_REVOLVE_DAYS;
+    return day * revolveDegPerDay;
+}
+
+float get_moon_rotate_angle_around_earth(float day) {
+    float revolveDegPerDay = REVOLVE_DEGREES / MOON_ORBIT_DAYS;
+    return day * revolveDegPerDay;
+}
+
+float get_moon_rotate_angle_around_itself(float day) {
+    float revolveDegPerDay = REVOLVE_DEGREES / MOON_REVOLVE_DAYS;
+    return day * revolveDegPerDay;
 }
 
 void framebufferSizeCallback(GLFWwindow *window, int width, int height) {
