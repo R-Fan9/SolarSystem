@@ -41,11 +41,11 @@ float get_moon_rotate_angle_around_itself(float day);
 
 void get_position_from_angle(float angle, float radius, float &adj_pos, float &opp_pos);
 
-void draw_sun(float day, glm::mat4 model, Shader *shader);
+glm::vec3 draw_sun(float day, Shader *shader);
 
-void draw_earth(float day, glm::vec3 orbit_center, glm::mat4 model, Shader *shader);
+glm::vec3 draw_earth(float day, glm::vec3 orbit_center, Shader *shader);
 
-void draw_moon(float day, glm::vec3 orbit_center, glm::mat4 model, Shader *shader);
+glm::vec3 draw_moon(float day, glm::vec3 orbit_center, Shader *shader);
 
 int main() {
     glfwInit();
@@ -97,20 +97,20 @@ int main() {
             -1.0f, -1.0f, 1.0f, 1.0f, 0.0f, 1.0f,
 
             // right face, green
-            -1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f,
-            -1.0f, 1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-            -1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-            -1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-            -1.0f, -1.0f, 1.0f, 0.0f, 1.0f, 0.0f,
-            -1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+            1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+            1.0f, 1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+            1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+            1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+            1.0f, -1.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+            1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f,
 
             // left face, red
-            1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
-            1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 0.0f,
-            1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f,
-            1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f,
-            1.0f, -1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
-            1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
+            -1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
+            -1.0f, 1.0f, -1.0f, 1.0f, 0.0f, 0.0f,
+            -1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f,
+            -1.0f, -1.0f, -1.0f, 1.0f, 0.0f, 0.0f,
+            -1.0f, -1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
+            -1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f,
 
             // bottom face, light blue
             -1.0f, -1.0f, -1.0f, 0.0f, 1.0f, 1.0f,
@@ -148,12 +148,10 @@ int main() {
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *) (3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
-    float day = 0.0f, inc = 1.0f / HOURS_PER_DAY;
+    float day = 365.0f, inc = 1.0f / HOURS_PER_DAY;
 
-    glm::mat4 model = glm::mat4(1.0f);
     glm::mat4 view = glm::mat4(1.0f);
     glm::mat4 proj = glm::mat4(1.0f);
-    view = glm::lookAt(glm::vec3(100.0f, 50.0f, 100.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     proj = glm::perspective(glm::radians(30.0f), (float) 4 / (float) 3, 0.1f, 1000.0f);
 
     while (!glfwWindowShouldClose(window)) {
@@ -165,15 +163,17 @@ int main() {
 
         // activate shader
         shader.use();
-
         shader.setMat4("view", view);
         shader.setMat4("projection", proj);
 
         // render container
         glBindVertexArray(VAO);
 
-        draw_sun(day, model, &shader);
-        draw_earth(day, glm::vec3(0.0f, 0.0f, 0.0f), model, &shader);
+        glm::vec3 sun_pos = draw_sun(day, &shader);
+        glm::vec3 earth_pos = draw_earth(day, sun_pos, &shader);
+        glm::vec3 moon_pos = draw_moon(day, earth_pos, &shader);
+
+        view = glm::lookAt(glm::vec3(100.0f, 50.0f, 100.0f), sun_pos, glm::vec3(0.0f, 1.0f, 0.0f));
 
         day += inc;
 
@@ -189,17 +189,21 @@ int main() {
     return 0;
 }
 
-void draw_sun(float day, glm::mat4 model, Shader *shader) {
+glm::vec3 draw_sun(float day, Shader *shader) {
+    glm::mat4 model = glm::mat4(1.0f);
+    float sun_x = 0.0f, sun_y = 0.0f, sun_z = 0.0f;
     glm::mat4 sun = glm::scale(model, glm::vec3(6.0f, 6.0f, 6.0f));
     sun = glm::rotate(sun,
                       (float) glm::radians(get_sun_rotate_angle_around_itself(day)),
                       glm::vec3(0.0f, 1.0f, 0.0f));
     shader->setMat4("model", sun);
     glDrawArrays(GL_TRIANGLES, 0, 36);
+    return {sun_x, sun_y, sun_z};
 }
 
-void draw_earth(float day, glm::vec3 orbit_center, glm::mat4 model, Shader *shader) {
-    float earth_x, earth_y, earth_z;
+glm::vec3 draw_earth(float day, glm::vec3 orbit_center, Shader *shader) {
+    glm::mat4 model = glm::mat4(1.0f);
+    float earth_x = 0.0f, earth_y = 0.0f, earth_z = 0.0f;
     float earth_orbit_degree = get_earth_rotate_angle_around_sun(day);
     get_position_from_angle(earth_orbit_degree, SUN_EARTH_DISTANCE, earth_x, earth_z);
 
@@ -214,25 +218,27 @@ void draw_earth(float day, glm::vec3 orbit_center, glm::mat4 model, Shader *shad
 
     shader->setMat4("model", earth);
     glDrawArrays(GL_TRIANGLES, 0, 36);
+    return {earth_x, earth_y, earth_z};
 
-    draw_moon(day, glm::vec3(earth_x, earth_y, earth_z), model, shader);
 }
 
-void draw_moon(float day, glm::vec3 orbit_center, glm::mat4 model, Shader *shader) {
-    float moon_x, moon_y, moon_z;
+glm::vec3 draw_moon(float day, glm::vec3 orbit_center, Shader *shader) {
+    glm::mat4 model = glm::mat4(1.0f);
+    float moon_x = 0.0f, moon_y = 0.0f, moon_z = 0.0f;
     float moon_orbit_degree = get_moon_rotate_angle_around_earth(day);
     get_position_from_angle(moon_orbit_degree, EARTH_MOON_DISTANCE, moon_x, moon_z);
 
-    glm::mat4 moon = glm::translate(
+    glm::mat4 moon = glm::scale(moon, glm::vec3(1.5f, 1.5f, 1.5f));
+    moon = glm::translate(
             model,
             glm::vec3(orbit_center[0] + moon_x, orbit_center[1] + moon_y, orbit_center[2] + moon_z));
-    moon = glm::scale(moon, glm::vec3(1.5f, 1.5f, 1.5f));
     moon = glm::rotate(moon,
                        (float) glm::radians(get_moon_rotate_angle_around_itself(day)),
                        glm::vec3(0.0f, 1.0f, 0.0f));
 
     shader->setMat4("model", moon);
     glDrawArrays(GL_TRIANGLES, 0, 36);
+    return {moon_x, moon_y, moon_z};
 }
 
 void get_position_from_angle(float angle, float radius, float &adj_pos, float &opp_pos) {
