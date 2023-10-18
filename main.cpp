@@ -22,6 +22,10 @@ const float EARTH_REVOLVE_DAYS = 1.0f;
 const float EARTH_ORBIT_DAYS = 365.0f;
 const float MOON_REVOLVE_DAYS = 28.0f;
 const float MOON_ORBIT_DAYS = 28.0f;
+const double FRAME_RATE = 60.0;
+
+double prev_time = 0.0f;
+double delta_time = 0.0f;
 
 void dump_framebuffer_to_ppm(std::string prefix, uint32_t width, uint32_t height);
 
@@ -40,6 +44,9 @@ float get_moon_rotate_angle_around_earth(float day);
 float get_moon_rotate_angle_around_itself(float day);
 
 void get_position_from_angle(float angle, float radius, float &adj_pos, float &opp_pos);
+
+//
+bool should_render();
 
 glm::vec3 draw_sun(float day, Shader *shader);
 
@@ -74,6 +81,9 @@ int main() {
 
     // configure global openGL state
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_LESS);
+//    glEnable(GL_CULL_FACE);
+//    glCullFace(GL_BACK);
 
     // build and compile shader program
     Shader shader("shaders/shader.vs", "shaders/shader.fs");
@@ -148,7 +158,7 @@ int main() {
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *) (3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
-    float day = 365.0f, inc = 1.0f / HOURS_PER_DAY;
+    float day = 0.0f, inc = 1.0f / HOURS_PER_DAY;
 
     glm::mat4 view = glm::mat4(1.0f);
     glm::mat4 proj = glm::mat4(1.0f);
@@ -157,27 +167,30 @@ int main() {
     while (!glfwWindowShouldClose(window)) {
         process_input(window);
 
-        // background color
-        glClearColor(0.3f, 0.4f, 0.5f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        if (should_render()) {
+            // background color
+            glClearColor(0.3f, 0.4f, 0.5f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // activate shader
-        shader.use();
-        shader.setMat4("view", view);
-        shader.setMat4("projection", proj);
+            // activate shader
+            shader.use();
+            shader.setMat4("view", view);
+            shader.setMat4("projection", proj);
 
-        // render container
-        glBindVertexArray(VAO);
+            // render container
+            glBindVertexArray(VAO);
 
-        glm::vec3 sun_pos = draw_sun(day, &shader);
-        glm::vec3 earth_pos = draw_earth(day, sun_pos, &shader);
-        glm::vec3 moon_pos = draw_moon(day, earth_pos, &shader);
+            glm::vec3 sun_pos = draw_sun(day, &shader);
+            glm::vec3 earth_pos = draw_earth(day, sun_pos, &shader);
+            glm::vec3 moon_pos = draw_moon(day, earth_pos, &shader);
 
-        view = glm::lookAt(glm::vec3(100.0f, 50.0f, 100.0f), sun_pos, glm::vec3(0.0f, 1.0f, 0.0f));
+            view = glm::lookAt(glm::vec3(100.0f, 50.0f, 100.0f), moon_pos, glm::vec3(0.0f, 1.0f, 0.0f));
 
-        day += inc;
+            day += inc;
 
-        glfwSwapBuffers(window);
+            glfwSwapBuffers(window);
+        }
+
         glfwPollEvents();
     }
 
@@ -269,6 +282,19 @@ float get_moon_rotate_angle_around_earth(float day) {
 float get_moon_rotate_angle_around_itself(float day) {
     float revolveDegPerDay = REVOLVE_DEGREES / MOON_REVOLVE_DAYS;
     return day * revolveDegPerDay;
+}
+
+bool should_render() {
+    double cur_time = glfwGetTime();
+    delta_time += (cur_time - prev_time);
+    prev_time = cur_time;
+
+    // check if the time elapsed is greater than or equal the frame rate
+    if (delta_time >= 1.0 / FRAME_RATE) {
+        delta_time -= 1.0 / FRAME_RATE;
+        return true;
+    }
+    return false;
 }
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
