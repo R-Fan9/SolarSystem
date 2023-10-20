@@ -45,7 +45,6 @@ float get_moon_rotate_angle_around_itself(float day);
 
 void get_position_from_angle(float angle, float radius, float &adj_pos, float &opp_pos);
 
-//
 bool should_render();
 
 glm::vec3 draw_sun(float day, Shader *shader);
